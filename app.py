@@ -3,11 +3,8 @@ import streamlit as st
 import base64
 from openai import OpenAI
 import openai
-import tensorflow as tf
-from PIL import Image, ImageOps
+from PIL import Image
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from streamlit_drawable_canvas import st_canvas
 
 Expert = " "
@@ -22,39 +19,43 @@ def encode_image_to_base64(image_path):
     except FileNotFoundError:
         return "Error: La imagen no se encontró en la ruta especificada."
 
+
 # --- Configuración de la app ---
 st.set_page_config(page_title='🧠 Tablero Inteligente', layout='wide')
 st.title('🧠 Tablero Inteligente')
 st.subheader("✏️ Dibuja tu boceto en el panel y presiona **“Analizar imagen”**")
 
-# --- Sidebar de configuración ---
+# --- Sidebar con propiedades del tablero ---
 with st.sidebar:
     st.subheader("⚙️ Propiedades del Tablero")
 
-    # Dimensiones
-    st.write("**Dimensiones del tablero**")
-    canvas_width = st.slider("Ancho del tablero", 300, 700, 400, 50)
+    # Dimensiones del tablero
+    st.subheader("Dimensiones del Tablero")
+    canvas_width = st.slider("Ancho del tablero", 300, 700, 500, 50)
     canvas_height = st.slider("Alto del tablero", 200, 600, 300, 50)
 
     # Herramienta de dibujo
     drawing_mode = st.selectbox(
-        "Herramienta de dibujo",
+        "Herramienta de Dibujo:",
         ("freedraw", "line", "rect", "circle", "transform", "polygon", "point")
     )
 
-    # Ancho del trazo
-    stroke_width = st.slider("Ancho de línea", 1, 30, 5)
+    # Ancho de trazo
+    stroke_width = st.slider("Selecciona el ancho de línea", 1, 30, 10)
 
-    # Colores
+    # Color del trazo
     stroke_color = st.color_picker("Color del trazo", "#000000")
+
+    # Color de fondo
     bg_color = st.color_picker("Color de fondo", "#FFFFFF")
 
     st.markdown("---")
-    st.info("💡 Consejo: Usa fondo blanco y trazo negro para mejores resultados visuales.")
+    st.info("💡 Consejo: Fondo blanco y trazo negro dan mejor contraste.")
 
     # Clave API
-    ke = st.text_input('🔑 Ingresa tu clave de OpenAI', type="password")
+    ke = st.text_input('🔑 Ingresa tu Clave de OpenAI', type="password")
     os.environ['OPENAI_API_KEY'] = ke
+
 
 # --- Inicialización del cliente ---
 api_key = os.environ.get('OPENAI_API_KEY', None)
@@ -62,9 +63,9 @@ client = None
 if api_key:
     client = OpenAI(api_key=api_key)
 
-# --- Lienzo principal ---
+# --- Crear el lienzo con las propiedades configuradas ---
 canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",  # color semitransparente para relleno
+    fill_color="rgba(255, 165, 0, 0.3)",
     stroke_width=stroke_width,
     stroke_color=stroke_color,
     background_color=bg_color,
@@ -77,26 +78,27 @@ canvas_result = st_canvas(
 # --- Botón de análisis ---
 analyze_button = st.button("🔍 Analizar imagen", type="secondary")
 
-# --- Procesamiento ---
+# --- Procesamiento del dibujo ---
 if analyze_button:
     if not api_key:
-        st.warning("⚠️ Por favor ingresa tu clave API en la barra lateral.")
+        st.warning("⚠️ Por favor ingresa tu clave de OpenAI en la barra lateral.")
     elif canvas_result.image_data is None:
-        st.warning("⚠️ Dibuja un boceto en el tablero antes de analizar.")
+        st.warning("⚠️ Dibuja algo en el tablero antes de analizar.")
     else:
         with st.spinner("🧠 Analizando tu imagen..."):
             try:
-                # Guardar y convertir imagen
+                # Convertir y guardar la imagen
                 input_numpy_array = np.array(canvas_result.image_data)
                 input_image = Image.fromarray(input_numpy_array.astype('uint8'), 'RGBA')
                 input_image.save('img.png')
 
-                # Codificar imagen
+                # Codificar imagen a base64
                 base64_image = encode_image_to_base64("img.png")
 
-                prompt_text = "Describe brevemente en español la imagen proporcionada."
+                # Prompt para la IA
+                prompt_text = "Describe brevemente en español lo que se observa en la imagen."
 
-                # Mensaje para el modelo
+                # Construcción del mensaje
                 messages = [
                     {
                         "role": "user",
@@ -110,7 +112,7 @@ if analyze_button:
                     }
                 ]
 
-                # Llamada a la API de OpenAI
+                # Petición al modelo
                 response = openai.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages,
@@ -132,9 +134,6 @@ if analyze_button:
 st.sidebar.markdown("---")
 st.sidebar.title("📘 Acerca de:")
 st.sidebar.write("""
-Esta aplicación permite dibujar un boceto y enviarlo a un modelo de IA 
-para obtener una descripción generada automáticamente.
-
-🧩 Combina visión computacional con modelos de lenguaje.
-Desarrollado con **Streamlit** y **OpenAI API**.
+Esta aplicación demuestra cómo una IA puede analizar un boceto dibujado a mano.  
+Combina un **canvas interactivo** con la **API de OpenAI** para generar descripciones automáticas.
 """)
